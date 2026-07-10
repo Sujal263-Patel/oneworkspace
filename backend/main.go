@@ -63,6 +63,28 @@ func (h *Hub) run() {
 
 			logActivity(client.workspaceID, client.username, "join_workspace", client.username+" connected to the workspace.")
 
+			// Broadcast a request to all existing clients in this workspace to send their presence
+			// so the newly joined client gets populated in their teammates list instantly.
+			presenceReq := Message{
+				WorkspaceID: client.workspaceID,
+				Type:        "request_presence",
+				SenderID:    "server",
+				SenderName:  "Server",
+			}
+			h.mu.RLock()
+			clients := h.workspaces[client.workspaceID]
+			for c := range clients {
+				if c.id != client.id {
+					select {
+					case c.send <- presenceReq:
+					default:
+						close(c.send)
+						delete(clients, c)
+					}
+				}
+			}
+			h.mu.RUnlock()
+
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if clients, ok := h.workspaces[client.workspaceID]; ok {
