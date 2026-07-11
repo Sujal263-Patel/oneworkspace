@@ -162,7 +162,9 @@ func (c *Client) readPump() {
 		var msg Message
 		err := c.conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("Read error: %v", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
+				log.Printf("Read error: %v", err)
+			}
 			break
 		}
 		// Secure sender metrics
